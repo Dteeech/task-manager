@@ -1,15 +1,19 @@
 # views/main_window.py
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
-    QHBoxLayout, QListWidget, QPushButton, QLineEdit, QLabel, QMessageBox
+    QHBoxLayout, QListWidget, QPushButton, QLineEdit, QLabel, QMessageBox, QListWidgetItem
 )
 from PySide6.QtCore import Qt
+from views.widgets.task_row_widget import TaskRowWidget
 
 class MainWindow(QMainWindow):
     """Vue principale de l'application de gestion de tâches."""
 
     def __init__(self):
         super().__init__()
+
+        self.parent_controller = None  
+        
         self.setWindowTitle("Gestionnaire de tâches")
         self.setMinimumSize(600, 400)
 
@@ -25,7 +29,7 @@ class MainWindow(QMainWindow):
 
         self.task_list = QListWidget()
         self.layout.addWidget(self.task_list)
-
+        
         input_layout = QHBoxLayout()
         self.task_title = QLineEdit()
         self.task_title.setPlaceholderText("Titre")
@@ -38,8 +42,7 @@ class MainWindow(QMainWindow):
         input_layout.addWidget(self.add_button)
         self.layout.addLayout(input_layout)
 
-    # --- Méthodes d’accès aux données ---
-
+   
     def get_task_inputs(self):
         return self.task_title.text().strip(), self.task_desc.text().strip()
 
@@ -51,7 +54,28 @@ class MainWindow(QMainWindow):
         self.task_list.clear()
 
     def add_task_to_list(self, task: dict):
-        self.task_list.addItem(f"{task['id']} - {task['title']} ({task['status']})")
+        """
+        Ajoute une tâche dans la liste sous forme de widget personnalisé.
+        """
+        # 1️⃣ Crée un "slot" (ligne vide) dans la QListWidget
+        item = QListWidgetItem()
 
-    def show_error(self, message: str):
-        QMessageBox.warning(self, "Erreur", message)
+        # 2️⃣ Crée ton widget custom (TaskRowWidget) en lui passant les données de la tâche
+        widget = TaskRowWidget(task)
+
+        # 3️⃣ Ajuste la hauteur de la ligne à la taille du widget
+        item.setSizeHint(widget.sizeHint())
+
+        # 4️⃣ Ajoute la ligne vide dans la QListWidget
+        self.task_list.addItem(item)
+
+        # 5️⃣ Place le widget à l’intérieur de cette ligne
+        self.task_list.setItemWidget(item, widget)
+
+        # 6️⃣ Connecte les signaux du widget à ton contrôleur
+        widget.edit_clicked.connect(lambda id=task["id"]: self.parent_controller.edit_task(id))
+        widget.delete_clicked.connect(lambda id=task["id"]: self.parent_controller.delete_task(id))
+
+    
+        def show_error(self, message: str):
+            QMessageBox.warning(self, "Erreur", message)
