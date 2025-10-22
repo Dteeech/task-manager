@@ -1,11 +1,10 @@
-from PySide6.QtWidgets import QApplication, QLabel
+from PySide6.QtWidgets import QApplication
+from views.main_window import MainWindow
+import sys
+from controllers.task_controller import TaskController
 
-def main():
-    app = QApplication([])
-    label = QLabel("Bonjour PySide6 !")
-    label.resize(200, 100)
-    label.show()
-    app.exec()
-
-if __name__ == "__main__":
-    main()
+app = QApplication(sys.argv)
+window = MainWindow()
+controller = TaskController(window)
+window.show()
+sys.exit(app.exec())
