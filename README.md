@@ -14,7 +14,8 @@ Application desktop de gestion de tâches développée en Python avec interface 
 ---
 
 ##  Fonctionnalités principales
-
+### Accessibilité
+-  **Darkmode - Lightmode**
 ### Gestion des tâches (CRUD)
 -   **Créer** une nouvelle tâche avec titre et description
 -   **Afficher** la liste de toutes les tâches
