@@ -21,6 +21,11 @@ class TaskDetailView(QWidget):
         super().__init__(parent)
         self.task = task
         self.parent_controller = parent_controller
+        self.dark_mode = False
+        if parent and hasattr(parent, 'dark_mode'):
+            self.dark_mode = parent.dark_mode
+        elif parent_controller and hasattr(parent_controller, 'view') and hasattr(parent_controller.view, 'dark_mode'):
+            self.dark_mode = parent_controller.view.dark_mode
         self.setup_ui()
 
     def setup_ui(self):
@@ -131,30 +136,84 @@ class TaskDetailView(QWidget):
 
     def get_stylesheet(self):
         """Retourne la feuille de style pour le widget."""
-        return """
-            QPushButton {
-                background-color: #f5f5f5;
-                border: 1px solid #ccc;
-                border-radius: 6px;
-                padding: 6px 10px;
-            }
-            QPushButton:hover {
-                background-color: #e9e9e9;
-            }
-            QTextEdit {
-                background: #fff;
-                border: 1px solid #ccc;
-                border-radius: 6px;
-                padding: 8px;
-                font-size: 13px;
-            }
-            QComboBox {
-                background: #fff;
-                border: 1px solid #ccc;
-                border-radius: 6px;
-                padding: 5px;
-            }
-        """
+        if self.dark_mode:
+            return """
+                QWidget {
+                    background-color: #1e1e1e;
+                    color: #e0e0e0;
+                }
+                QLabel {
+                    color: #e0e0e0;
+                }
+                QPushButton {
+                    background-color: #3d3d3d;
+                    color: #e0e0e0;
+                    border: 1px solid #4d4d4d;
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                }
+                QPushButton:hover {
+                    background-color: #4d4d4d;
+                }
+                QTextEdit {
+                    background: #2d2d2d;
+                    color: #e0e0e0;
+                    border: 1px solid #3d3d3d;
+                    border-radius: 6px;
+                    padding: 8px;
+                    font-size: 13px;
+                }
+                QComboBox {
+                    background: #2d2d2d;
+                    color: #e0e0e0;
+                    border: 1px solid #3d3d3d;
+                    border-radius: 6px;
+                    padding: 5px;
+                }
+                QComboBox::drop-down {
+                    border: none;
+                }
+                QComboBox QAbstractItemView {
+                    background-color: #2d2d2d;
+                    color: #e0e0e0;
+                    selection-background-color: #4d4d4d;
+                }
+            """
+        else:
+            return """
+                QWidget {
+                    background-color: #ffffff;
+                    color: #000000;
+                }
+                QLabel {
+                    color: #000000;
+                }
+                QPushButton {
+                    background-color: #f5f5f5;
+                    color: #000000;
+                    border: 1px solid #ccc;
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                }
+                QPushButton:hover {
+                    background-color: #e9e9e9;
+                }
+                QTextEdit {
+                    background: #fff;
+                    color: #000000;
+                    border: 1px solid #ccc;
+                    border-radius: 6px;
+                    padding: 8px;
+                    font-size: 13px;
+                }
+                QComboBox {
+                    background: #fff;
+                    color: #000000;
+                    border: 1px solid #ccc;
+                    border-radius: 6px;
+                    padding: 5px;
+                }
+            """
 
     def upload_banner(self):
         """Gère l'upload d'une nouvelle bannière."""

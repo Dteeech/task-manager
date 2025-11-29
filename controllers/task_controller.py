@@ -22,7 +22,7 @@ class TaskController:
 
         tasks = self.model.get_all_tasks()
         for task in tasks:
-            self.view.add_task_to_list(task)  # 👈 affichage via widget custom
+            self.view.add_task_to_list(task)  # affichage via widget custom
 
     def create_task(self):
         """Crée une nouvelle tâche en base, puis rafraîchit la vue."""

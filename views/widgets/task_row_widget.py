@@ -8,17 +8,18 @@ class TaskRowWidget(QWidget):
     edit_clicked = Signal(int)
     delete_clicked = Signal(int)
     status_changed = Signal(int, str)  # id, nouveau statut
-    def __init__(self, task: dict):
+    def __init__(self, task: dict, dark_mode=False):
         super().__init__()
         self.task = task
+        self.dark_mode = dark_mode
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(5, 2, 5, 2)
 
         # Label du titre
-        label = QLabel(f"{task['title']}")
-        label.setStyleSheet("font-size: 14px;")
-        layout.addWidget(label, alignment=Qt.AlignLeft)
+        self.title_label = QLabel(f"{task['title']}")
+        self.title_label.setStyleSheet("font-size: 14px;")
+        layout.addWidget(self.title_label, alignment=Qt.AlignLeft)
    
         # === Statut modifiable (combo coloré) ===
         self.status_colors = {
@@ -80,10 +81,28 @@ class TaskRowWidget(QWidget):
         delete_btn.clicked.connect(lambda: self.delete_clicked.emit(self.task["id"]))
         layout.addWidget(delete_btn, alignment=Qt.AlignRight)
          
-          # Layout adaptable
+        # Layout adaptable
         layout.setAlignment(Qt.AlignVCenter)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.setStyleSheet("""
+        
+        # Stocker les boutons pour le thème
+        self.edit_btn = edit_btn
+        self.delete_btn = delete_btn
+        
+        # Appliquer le thème initial
+        self.apply_theme(self.dark_mode)
+    
+    def apply_theme(self, dark_mode):
+        """Applique le thème au widget de tâche."""
+        self.dark_mode = dark_mode
+        if dark_mode:
+            self.setStyleSheet(self.get_dark_stylesheet())
+        else:
+            self.setStyleSheet(self.get_light_stylesheet())
+    
+    def get_light_stylesheet(self):
+        """Style pour le mode clair."""
+        return """
             QWidget {
                 background-color: white;
                 border-bottom: 1px solid #eee;
@@ -91,29 +110,66 @@ class TaskRowWidget(QWidget):
             QWidget:hover {
                 background-color: #fafafa;
             }
-        """)
-
-          # === Style global ===
-        self.setStyleSheet("""
-            QWidget {
-                background-color: white;
-                border-bottom: 1px solid #eee;
+            QLabel {
+                color: #000000;
             }
             QComboBox {
                 border: 1px solid #ccc;
                 border-radius: 5px;
                 padding: 2px 6px;
                 background: #fafafa;
+                color: #000000;
             }
             QComboBox:hover {
                 background: #f0f0f0;
             }
             QPushButton {
-                border: none;
-                background: transparent;
+                background-color: #f1f3f5;
+                border: 1px solid #d0d0d0;
+                border-radius: 6px;
             }
             QPushButton:hover {
-                background: #f7f7f7;
-                border-radius: 5px;
+                background-color: #e6e9ec;
             }
-        """)
+        """
+    
+    def get_dark_stylesheet(self):
+        """Style pour le mode sombre."""
+        return """
+            QWidget {
+                background-color: #2d2d2d;
+                border-bottom: 1px solid #3d3d3d;
+            }
+            QWidget:hover {
+                background-color: #3d3d3d;
+            }
+            QLabel {
+                color: #e0e0e0;
+            }
+            QComboBox {
+                border: 1px solid #4d4d4d;
+                border-radius: 5px;
+                padding: 2px 6px;
+                background: #3d3d3d;
+                color: #e0e0e0;
+            }
+            QComboBox:hover {
+                background: #4d4d4d;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #2d2d2d;
+                color: #e0e0e0;
+                selection-background-color: #4d4d4d;
+            }
+            QPushButton {
+                background-color: #3d3d3d;
+                border: 1px solid #4d4d4d;
+                border-radius: 6px;
+            }
+            QPushButton:hover {
+                background-color: #4d4d4d;
+            }
+        """
