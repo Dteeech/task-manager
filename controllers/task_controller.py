@@ -8,9 +8,9 @@ class TaskController:
         self.view = view
         self.model = TaskModel()
          
-         #On dit à la Vue : “Voici ton contrôleur parent”
+        # Établit la relation entre la vue et son contrôleur
         self.view.parent_controller = self
-        # Connecte les signaux
+        # Connecte les signaux de la vue aux méthodes du contrôleur
         self.view.add_button.clicked.connect(self.create_task)
 
         # Charge les tâches au démarrage
@@ -33,11 +33,11 @@ class TaskController:
             return
 
         try:
-            # 🔹 Appel au modèle (écriture en BDD)
+            # Crée la tâche dans la base de données
             new_task = self.model.create_task(title, desc)
             print(f"Tâche créée en base : {new_task}")
 
-            # 🔹 Rafraîchit la vue avec la réponse réelle du modèle
+            # Met à jour l'affichage avec la nouvelle tâche
             self.view.add_task_to_list(new_task)
             self.view.clear_inputs()
 
@@ -53,7 +53,7 @@ class TaskController:
             self.model.delete_task(task_id)
             self.load_tasks()
     
-     # --- Modification via la vue détail ---
+    # Gestion de la vue détaillée d'une tâche
 
    
     def open_task_detail(self, task_id):
@@ -71,16 +71,16 @@ class TaskController:
         detail_view.status_changed.connect(lambda s: self.update_task_status(task_id, s))
         detail_view.save_clicked.connect(self.update_task)
 
-        # Ajoute et affiche la page détail dans le stack en protégeant l'appel
+        # Ajoute et affiche la vue détail dans le stack avec protection contre les erreurs
         try:
-            # addWidget lèvera si le widget C++ parent a été détruit
+            # Vérifie que le widget n'est pas déjà présent avant de l'ajouter
             if self.view.stack.indexOf(detail_view) == -1:
                 self.view.stack.addWidget(detail_view)
             self.view.stack.setCurrentWidget(detail_view)
-            # conserve la référence si besoin
+            # Conserve la référence pour un accès ultérieur si nécessaire
             self.detail_view = detail_view
         except RuntimeError:
-            # Si la stack a été détruite côté C++ -> affiche message et tente une récupération minimale
+            # Gestion d'erreur si l'objet C++ du parent a été détruit
             try:
                 self.view.show_error("Erreur interne : l'interface a été détruite. Veuillez relancer l'application.")
             except Exception:
@@ -92,15 +92,19 @@ class TaskController:
         self.view.stack.setCurrentIndex(0)
         self.load_tasks()
 
-    # --- Update status depuis liste principale ---
+    # Mise à jour du statut depuis la liste principale
     def update_task_status(self, task_id: int, new_status: str):
         self.model.update_status(task_id, new_status)
-    # Optionnel : pas besoin de reload complet si tu veux instantané
-    # self.load_tasks()
+        # Pas de rechargement complet nécessaire, la mise à jour est instantanée
 
     def update_task(self, task):
-        """Délègue la mise à jour au modèle."""
-        self.model.update_task_details(task)
+        """Délègue la mise à jour au modèle et retourne à la liste."""
+        try:
+            self.model.update_task_details(task)
+            # Retour à la page principale après la sauvegarde
+            self.back_to_main()
+        except Exception as e:
+            self.view.show_error(f"Erreur lors de la mise à jour : {e}")
 
     def handle_image_upload(self, task):
         """Gère la mise à jour de l'image d'une tâche."""

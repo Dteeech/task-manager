@@ -1,6 +1,7 @@
 # models/task_model.py
 from PySide6.QtCore import QObject, Signal
 from models.database import DatabaseManager
+import sqlite3
 
 
 class TaskModel(QObject):
@@ -52,7 +53,7 @@ class TaskModel(QObject):
    
     def get_task(self, task_id: int):
         """Récupère une tâche par son ID."""
-        query = "SELECT id, title, description, status FROM tasks WHERE id = ?"
+        query = "SELECT id, title, description, status, image_path FROM tasks WHERE id = ?"
 
         row = self.db.execute(query, (task_id,), fetchone=True)
         if row:
@@ -88,7 +89,7 @@ class TaskModel(QObject):
             self.task_updated.emit(task)  # Succès → notifie les vues
 
         except sqlite3.Error as e:
-            print(f"❌ Erreur SQL : {e}")
+            print(f"Erreur SQL : {e}")
             self.task_update_failed.emit(task["id"], str(e))  # Échec → notifie l'erreur
 
 

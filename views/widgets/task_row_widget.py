@@ -21,7 +21,7 @@ class TaskRowWidget(QWidget):
         self.title_label.setStyleSheet("font-size: 14px;")
         layout.addWidget(self.title_label, alignment=Qt.AlignLeft)
    
-        # === Statut modifiable (combo coloré) ===
+        # Configuration du sélecteur de statut avec couleurs personnalisées
         self.status_colors = {
             "À faire": "#ffb347",
             "En cours": "#6fa3ef",
@@ -41,7 +41,7 @@ class TaskRowWidget(QWidget):
 
         layout.addStretch()
 
-        # Bouton édition ✏️
+        # Bouton d'édition de la tâche
         edit_btn = QPushButton()
         edit_btn.setIcon(QIcon("assets/icons/pen.svg"))
         edit_btn.setToolTip("Modifier la tâche")
@@ -62,7 +62,7 @@ class TaskRowWidget(QWidget):
         
         layout.addWidget(edit_btn, alignment=Qt.AlignRight)
 
-        # Bouton suppression 🗑️
+        # Bouton de suppression de la tâche
         delete_btn = QPushButton()
         delete_btn.setIcon(QIcon("assets/icons/trash.svg"))
         delete_btn.setToolTip("Supprimer la tâche")

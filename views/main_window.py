@@ -17,11 +17,11 @@ class MainWindow(QMainWindow):
         self.settings = QSettings("TaskManager", "DarkMode")
         self.dark_mode = self.settings.value("dark_mode", False, type=bool)
         
-        # === Stack principal ===
+        # Initialisation du conteneur de pages (permet de basculer entre liste et détail)
         self.stack = QStackedWidget()
         self.setCentralWidget(self.stack)
 
-        # === Page principale ===
+        # Configuration de la page principale
         self.page_main = QWidget()
         self.layout_main = QVBoxLayout(self.page_main)
 
@@ -30,20 +30,20 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Gestionnaire de tâches")
         self.setMinimumSize(600, 400)
 
-        # Le QStackedWidget est le central widget — on n'écrase pas le central widget
-        # Utilise la layout de la page principale créée plus haut
+        # Le QStackedWidget est le central widget et ne doit pas être écrasé
+        # Utilise le layout de la page principale créée plus haut
         self.layout = self.layout_main
 
-        # --- Header avec titre et bouton dark mode ---
+        # Configuration du header avec titre et bouton dark mode
         header_layout = QHBoxLayout()
         
-        self.title_label = QLabel("🗂️ Mes Tâches")
+        self.title_label = QLabel("Mes Tâches")
         self.title_label.setAlignment(Qt.AlignCenter)
         header_layout.addStretch()
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
         
-        # Bouton dark mode
+        # Bouton pour basculer entre mode clair et sombre
         self.dark_mode_btn = QPushButton()
         self.dark_mode_btn.setFixedSize(80, 40)
         self.dark_mode_btn.setCursor(Qt.PointingHandCursor)
@@ -132,7 +132,7 @@ class MainWindow(QMainWindow):
                 widget.apply_theme(self.dark_mode)
     
     def update_dark_mode_button(self):
-        """Met à jour l'icône du bouton dark mode."""
+        """Met à jour le texte et l'infobulle du bouton de thème."""
         if self.dark_mode:
             self.dark_mode_btn.setText("☀️")
             self.dark_mode_btn.setToolTip("Mode clair")

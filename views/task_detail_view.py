@@ -34,7 +34,7 @@ class TaskDetailView(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
-        # === Titre + Retour ===
+        # Configuration du header avec bouton retour et titre
         header = QHBoxLayout()
         back_btn = QPushButton("← Retour")
         back_btn.setFixedWidth(100)
@@ -48,16 +48,16 @@ class TaskDetailView(QWidget):
         header.addWidget(title_label)
         layout.addLayout(header)
 
-        # === Image bannière ===
+        # Configuration de la section bannière (image)
         self.setup_banner_section(layout)
 
-        # === Description ===
+        # Configuration de la section description
         self.setup_description_section(layout)
 
-        # === Statut ===
+        # Configuration de la section statut
         self.setup_status_section(layout)
 
-        # === Bouton de sauvegarde ===
+        # Ajout du bouton de sauvegarde
         self.setup_save_button(layout)
 
         # Style global
@@ -74,7 +74,7 @@ class TaskDetailView(QWidget):
             pix = QPixmap(self.task["image_path"])
             self.banner.setPixmap(pix.scaledToHeight(160, Qt.SmoothTransformation))
         else:
-            self.banner.setText("🖼️ Aucune image")
+            self.banner.setText("Aucune image")
 
         layout.addWidget(self.banner)
 
@@ -97,7 +97,7 @@ class TaskDetailView(QWidget):
 
     def setup_description_section(self, layout):
         """Configure la section de description."""
-        desc_label = QLabel("📝 Description :")
+        desc_label = QLabel("Description :")
         layout.addWidget(desc_label)
 
         self.description_edit = QTextEdit()
@@ -130,7 +130,7 @@ class TaskDetailView(QWidget):
 
     def setup_save_button(self, layout):
         """Configure le bouton de sauvegarde."""
-        save_btn = QPushButton("💾 Enregistrer")
+        save_btn = QPushButton("Enregistrer")
         save_btn.clicked.connect(self.save_task)
         layout.addWidget(save_btn, alignment=Qt.AlignRight)
 
@@ -269,7 +269,7 @@ class TaskDetailView(QWidget):
 
             # Mettre à jour la tâche et l'affichage
             self.task["image_path"] = None
-            self.banner.setText("🖼️ Aucune image")
+            self.banner.setText("Aucune image")
             self.clear_banner_btn.setVisible(False)
 
             # Notifier le contrôleur
@@ -283,7 +283,7 @@ class TaskDetailView(QWidget):
         """Sauvegarde les modifications de la tâche."""
         updated_task = {
             "id": self.task["id"],
-            "title": self.task["title"],  # Le titre n'est pas modifiable ici
+            "title": self.task["title"],
             "description": self.description_edit.toPlainText(),
             "status": self.status_box.currentText(),
             "image_path": self.task.get("image_path")

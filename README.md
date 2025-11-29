@@ -275,7 +275,378 @@ self.add_button.clicked.connect(self.create_task)
 
 ---
 
-## Résolution de problèmes
+## Explications détaillées
+
+### Architecture et conception
+
+#### Pourquoi séparer Modèle, Vue et Contrôleur ?
+
+L'architecture **MVC** est un patron de conception qui a fait ses preuves depuis des décennies. Dans ce projet, chaque couche a une responsabilité bien définie :
+
+**Le Modèle (`models/`)** est la **source de vérité** :
+- Il ne connaît rien de l'interface graphique
+- Il gère uniquement les données et leur persistance
+- Il contient toute la logique métier (validation, calculs, règles)
+- Si demain on décide de créer une API REST ou une interface en ligne de commande, on réutilise le même modèle sans modification
+
+**La Vue (`views/`)** est **passive et déclarative** :
+- Elle affiche simplement ce qu'on lui dit d'afficher
+- Elle émet des signaux quand l'utilisateur interagit (clic, saisie, etc.)
+- Elle ne prend aucune décision métier
+- Elle ne sait pas comment les données sont stockées
+
+**Le Contrôleur (`controllers/`)** est le **chef d'orchestre** :
+- Il écoute les signaux de la Vue
+- Il interroge ou met à jour le Modèle en conséquence
+- Il demande à la Vue de se mettre à jour après une modification
+- Il contient la logique de navigation (ouvrir une vue détail, revenir à la liste, etc.)
+
+**Exemple concret** : Quand tu cliques sur "Ajouter une tâche"
+1. La **Vue** émet un signal `clicked` (elle ne sait rien de ce qui va se passer)
+2. Le **Contrôleur** reçoit le signal, récupère les données des champs de saisie
+3. Le **Contrôleur** demande au **Modèle** : "Crée une tâche avec ces infos"
+4. Le **Modèle** valide les données, les insère en base, retourne la tâche créée
+5. Le **Contrôleur** demande à la **Vue** : "Affiche cette nouvelle tâche dans la liste"
+
+Cette séparation permet de **tester facilement** : on peut tester le Modèle sans interface, tester le Contrôleur avec un faux Modèle, etc.
+
+---
+
+### Le système Signal/Slot de Qt
+
+Qt utilise un mécanisme puissant appelé **Signal/Slot** qui remplace les callbacks traditionnels. C'est un système événementiel typé et sécurisé.
+
+#### Qu'est-ce qu'un Signal ?
+Un **signal** est un événement émis par un widget quand quelque chose se passe. Par exemple :
+- `clicked` quand on clique sur un bouton
+- `textChanged` quand le contenu d'un champ texte change
+- Des signaux personnalisés que tu définis toi-même (comme `edit_clicked` dans `TaskRowWidget`)
+
+#### Qu'est-ce qu'un Slot ?
+Un **slot** est une fonction Python ordinaire qui réagit à un signal. Quand un signal est émis, tous les slots connectés sont appelés automatiquement.
+
+#### Exemple pratique
+```python
+# Dans TaskRowWidget, on définit nos propres signaux
+class TaskRowWidget(QWidget):
+    edit_clicked = Signal(int)      # Signal personnalisé qui transmet un ID
+    delete_clicked = Signal(int)
+    
+    def __init__(self, task):
+        # ...
+        edit_btn.clicked.connect(
+            lambda: self.edit_clicked.emit(self.task["id"])
+        )
+```
+
+```python
+# Dans MainWindow, on connecte ce signal à une action
+widget.edit_clicked.connect(
+    lambda id: self.parent_controller.open_task_detail(id)
+)
+```
+
+**Ce qui se passe** :
+1. Utilisateur clique sur le bouton ✏️
+2. Signal `clicked` du bouton → appelle le lambda
+3. Lambda émet le signal `edit_clicked` avec l'ID de la tâche
+4. Signal `edit_clicked` → appelle `open_task_detail()` dans le contrôleur
+5. Le contrôleur ouvre la vue détail
+
+**Avantage majeur** : Les widgets ne se connaissent pas entre eux. Le `TaskRowWidget` ne sait pas qu'il y a un contrôleur, il émet juste un signal. C'est le code parent qui décide quoi faire avec ce signal.
+
+---
+
+### Gestion de la persistance avec SQLite
+
+#### Pourquoi SQLite et pas un simple fichier JSON ?
+
+**SQLite offre plusieurs avantages** :
+- **Transactions ACID** : si l'app crash pendant une écriture, la base reste cohérente
+- **Requêtes SQL** : filtrer, trier, rechercher devient trivial
+- **Index** : performances même avec des milliers de tâches
+- **Concurrent access** : gestion automatique des accès simultanés
+- **Standard** : tous les langages ont des drivers SQLite
+
+**Avec un fichier JSON**, tu devrais :
+- Lire tout le fichier en mémoire
+- Modifier la structure Python
+- Réécrire tout le fichier (risque de corruption si l'app crash)
+- Pas de requêtes : tu dois parcourir toutes les tâches pour filtrer
+
+#### Organisation de la couche base de données
+
+```python
+# database.py - Point d'entrée unique pour la connexion
+def get_connection():
+    conn = sqlite3.connect('data/tasks.db')
+    conn.row_factory = sqlite3.Row  # Permet d'accéder par nom de colonne
+    return conn
+```
+
+```python
+# task_model.py - Toutes les opérations sur les tâches
+class TaskModel:
+    def create_task(self, title, description):
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO tasks (title, description, status)
+            VALUES (?, ?, 'À faire')
+        """, (title, description))
+        conn.commit()
+        # ...
+```
+
+**Pourquoi des méthodes dédiées ?**
+- Chaque opération CRUD est testable individuellement
+- Le SQL est centralisé (pas éparpillé dans toute l'app)
+- Si on change de base (PostgreSQL), on modifie juste ce fichier
+
+---
+
+### Le Dark Mode : Comment ça fonctionne ?
+
+Le dark mode utilise trois mécanismes Qt :
+
+#### 1. QSettings pour la persistance
+```python
+self.settings = QSettings("TaskManager", "DarkMode")
+self.dark_mode = self.settings.value("dark_mode", False, type=bool)
+```
+
+`QSettings` stocke les préférences utilisateur dans l'emplacement standard de l'OS :
+- **macOS** : `~/Library/Preferences/com.TaskManager.DarkMode.plist`
+- **Windows** : Registre Windows
+- **Linux** : `~/.config/TaskManager/DarkMode.conf`
+
+#### 2. Feuilles de style dynamiques (QSS)
+Qt utilise un système de styles CSS-like appelé **QSS (Qt Style Sheets)** :
+
+```python
+def apply_theme(self):
+    if self.dark_mode:
+        self.setStyleSheet(self.get_dark_stylesheet())
+    else:
+        self.setStyleSheet(self.get_light_stylesheet())
+```
+
+Les feuilles de style peuvent cibler :
+- Des types de widgets : `QPushButton { ... }`
+- Des IDs spécifiques : `QPushButton#dark_mode_btn { ... }`
+- Des états : `QPushButton:hover { ... }`
+
+#### 3. Propagation du thème
+Quand on bascule le mode, il faut mettre à jour **tous** les widgets :
+
+```python
+def toggle_dark_mode(self):
+    self.dark_mode = not self.dark_mode
+    self.apply_theme()  # Applique à la fenêtre principale
+    
+    # Met à jour chaque widget de tâche existant
+    for i in range(self.task_list.count()):
+        widget = self.task_list.itemWidget(self.task_list.item(i))
+        widget.apply_theme(self.dark_mode)
+```
+
+**Pourquoi passer `dark_mode` en paramètre aux widgets ?**
+```python
+widget = TaskRowWidget(task, self.dark_mode)
+```
+
+Parce que les widgets enfants doivent connaître le thème actif dès leur création. Sinon, une nouvelle tâche ajoutée en mode sombre apparaîtrait en mode clair.
+
+---
+
+### Gestion des images de bannière
+
+Les images sont stockées localement dans un dossier `images/` avec une convention de nommage :
+
+```python
+image_filename = f"task_{self.task['id']}_banner.png"
+dest_path = os.path.join("images", image_filename)
+```
+
+**Étapes de l'upload** :
+1. Utilisateur sélectionne une image via `QFileDialog`
+2. L'image est copiée dans `images/task_X_banner.png`
+3. L'image est redimensionnée avec Pillow (évite les fichiers trop lourds)
+4. Le chemin est stocké en base dans `image_path`
+5. L'aperçu est mis à jour avec `QPixmap`
+
+**Pourquoi pas stocker l'image en base (BLOB) ?**
+- Plus simple de gérer des fichiers
+- Les OS optimisent le cache des fichiers
+- Plus facile de faire des backups
+- Pas de limite de taille en base
+
+**Gestion de la suppression** :
+```python
+def clear_banner(self):
+    if os.path.exists(self.task["image_path"]):
+        os.remove(self.task["image_path"])
+    self.task["image_path"] = None
+```
+
+---
+
+### Widgets personnalisés
+
+#### TaskRowWidget : Un widget réutilisable
+
+Au lieu de gérer chaque ligne de tâche manuellement, on crée un **widget personnalisé** qui encapsule :
+- L'affichage (label, boutons, combo de statut)
+- Le comportement (signaux pour édition/suppression)
+- Le style (hover, couleurs)
+
+**Avantages** :
+- **Réutilisable** : on crée une fois, on utilise partout
+- **Maintenable** : le code de la ligne est isolé
+- **Testable** : on peut tester le widget indépendamment
+
+```python
+class TaskRowWidget(QWidget):
+    # Définir des signaux personnalisés
+    edit_clicked = Signal(int)
+    delete_clicked = Signal(int)
+    
+    def __init__(self, task, dark_mode=False):
+        # Construire l'UI du widget
+        # Connecter les signaux internes
+```
+
+**Utilisation** :
+```python
+widget = TaskRowWidget(task, self.dark_mode)
+self.task_list.setItemWidget(item, widget)
+widget.edit_clicked.connect(self.handle_edit)
+```
+
+---
+
+### Navigation entre vues avec QStackedWidget
+
+Le `QStackedWidget` permet d'avoir plusieurs "pages" dans la même fenêtre :
+
+```python
+self.stack = QStackedWidget()
+self.stack.addWidget(self.page_main)      # Index 0
+self.stack.addWidget(self.detail_view)    # Index 1
+self.stack.setCurrentIndex(1)             # Affiche la vue détail
+```
+
+**Avantage vs ouvrir une nouvelle fenêtre** :
+- Une seule fenêtre = UX plus fluide
+- Pas de gestion de fenêtres multiples
+- Transitions plus rapides
+
+**Gestion du parent Qt** :
+```python
+detail_view = TaskDetailView(task, parent=self.view.stack)
+```
+
+Le `parent` est crucial en Qt :
+- Qt détruit automatiquement les enfants quand le parent est détruit
+- Évite les fuites mémoire
+- Évite l'erreur "Internal C++ object already deleted"
+
+---
+
+### Gestion des erreurs et validation
+
+#### Validation côté Modèle
+```python
+def create_task(self, title, description):
+    if not title or not title.strip():
+        raise ValueError("Le titre est obligatoire")
+    # ...
+```
+
+Le modèle **refuse** les données invalides. C'est lui le gardien de l'intégrité.
+
+#### Affichage côté Vue
+```python
+try:
+    new_task = self.model.create_task(title, desc)
+    self.view.add_task_to_list(new_task)
+except ValueError as e:
+    self.view.show_error(str(e))
+```
+
+Le contrôleur capture l'erreur et demande à la vue de l'afficher.
+
+**Pourquoi ne pas valider dans la Vue ?**
+Parce que la Vue ne devrait pas connaître les règles métier. Si demain on dit "le titre doit faire minimum 3 caractères", on modifie juste le Modèle, pas la Vue.
+
+---
+
+### Astuces et bonnes pratiques appliquées
+
+#### 1. Horodatage automatique
+```sql
+created_at TEXT DEFAULT CURRENT_TIMESTAMP
+updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+```
+
+SQLite gère automatiquement les dates de création et modification.
+
+#### 2. Conversion Row → dict
+```python
+conn.row_factory = sqlite3.Row
+# ...
+task = dict(cursor.fetchone())
+```
+
+`sqlite3.Row` permet d'accéder aux colonnes par nom, et `dict()` convertit en dictionnaire Python standard.
+
+#### 3. Paramètres SQL préparés
+```python
+cursor.execute("INSERT INTO tasks (title) VALUES (?)", (title,))
+```
+
+**Toujours** utiliser des paramètres préparés (`?`) au lieu de concaténer des strings. Cela prévient les injections SQL.
+
+#### 4. Context manager pour la connexion
+```python
+with get_connection() as conn:
+    cursor = conn.cursor()
+    # ...
+    conn.commit()
+```
+
+Le `with` garantit que la connexion est fermée même en cas d'erreur.
+
+---
+
+### Limitations actuelles et pistes d'amélioration
+
+#### Ce qui pourrait être amélioré
+
+**1. Tests unitaires**
+Actuellement, le code n'a pas de tests automatisés. Ajouter des tests avec `pytest` permettrait de :
+- Vérifier que le Modèle gère bien les cas limites
+- Tester les validations
+- Éviter les régressions lors de modifications
+
+**2. Gestion des erreurs réseau (futur)**
+Si on ajoute une synchronisation cloud, il faudra gérer :
+- Les timeouts
+- Les conflits de version
+- Le mode hors-ligne
+
+**3. Performance avec beaucoup de tâches**
+Actuellement, toutes les tâches sont chargées en mémoire. Avec 10 000 tâches, il faudrait :
+- Pagination
+- Lazy loading
+- Virtualisation de la liste
+
+**4. Undo/Redo**
+Implémenter un système de Command Pattern pour annuler/refaire les actions.
+
+---
+
+## 🐛 Résolution de problèmes
 
 ### L'application ne se lance pas
 **Solution :**
