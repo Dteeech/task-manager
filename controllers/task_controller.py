@@ -1,6 +1,7 @@
 # controllers/task_controller.py
 from models.task_model import TaskModel
 from PySide6.QtWidgets import QMessageBox
+from views.task_detail_view import TaskDetailView
 
 class TaskController:
     def __init__(self, view):
@@ -51,5 +52,62 @@ class TaskController:
         if confirm == QMessageBox.Yes:
             self.model.delete_task(task_id)
             self.load_tasks()
+    
+     # --- Modification via la vue détail ---
 
-        
+   
+    def open_task_detail(self, task_id):
+        """Ouvre la vue de détail d'une tâche dans le QStackedWidget."""
+        task = self.model.get_task(task_id)
+        if not task:
+            self.view.show_error("Tâche introuvable.")
+            return
+
+        # Crée la vue de détail (avec parent = stack pour s'assurer d'une hiérarchie Qt correcte)
+        detail_view = TaskDetailView(task, parent=self.view.stack, parent_controller=self)
+
+        # Connecte les signaux
+        detail_view.back_clicked.connect(self.back_to_main)
+        detail_view.status_changed.connect(lambda s: self.update_task_status(task_id, s))
+        detail_view.save_clicked.connect(self.update_task)
+
+        # Ajoute et affiche la page détail dans le stack en protégeant l'appel
+        try:
+            # addWidget lèvera si le widget C++ parent a été détruit
+            if self.view.stack.indexOf(detail_view) == -1:
+                self.view.stack.addWidget(detail_view)
+            self.view.stack.setCurrentWidget(detail_view)
+            # conserve la référence si besoin
+            self.detail_view = detail_view
+        except RuntimeError:
+            # Si la stack a été détruite côté C++ -> affiche message et tente une récupération minimale
+            try:
+                self.view.show_error("Erreur interne : l'interface a été détruite. Veuillez relancer l'application.")
+            except Exception:
+                pass
+
+
+    def back_to_main(self):
+        """Retourne à la page principale sans recréer la vue."""
+        self.view.stack.setCurrentIndex(0)
+        self.load_tasks()
+
+    # --- Update status depuis liste principale ---
+    def update_task_status(self, task_id: int, new_status: str):
+        self.model.update_status(task_id, new_status)
+    # Optionnel : pas besoin de reload complet si tu veux instantané
+    # self.load_tasks()
+
+    def update_task(self, task):
+        """Délègue la mise à jour au modèle."""
+        self.model.update_task_details(task)
+
+    def handle_image_upload(self, task):
+        """Gère la mise à jour de l'image d'une tâche."""
+        try:
+            # Met à jour le chemin de l'image dans la tâche
+            self.model.update_task_details(task)
+            print(f"Image mise à jour pour la tâche {task['id']}")
+        except Exception as e:
+            print(f"Erreur lors de la mise à jour de l'image: {e}")
+            self.view.show_error(f"Erreur lors de la mise à jour de l'image: {e}")

@@ -12,6 +12,9 @@ class TaskModel(QObject):
     task_added = Signal(dict)
     task_updated = Signal(dict)
     task_deleted = Signal(int)
+    task_update_failed = Signal(int, str) 
+
+    
 
     def __init__(self, db_path="app_data.db"):
         super().__init__()
@@ -46,23 +49,51 @@ class TaskModel(QObject):
             "SELECT * FROM tasks WHERE id=?", (task_id,), fetchone=True
         )
         return dict(row) if row else None
+   
+    def get_task(self, task_id: int):
+        """Récupère une tâche par son ID."""
+        query = "SELECT id, title, description, status FROM tasks WHERE id = ?"
 
-    def update_task(self, task_id: int, title: str, description: str, status: str):
-        """Met à jour une tâche et émet un signal."""
-        self.db.execute(
-            """
-            UPDATE tasks 
-            SET title=?, description=?, status=?, updated_at=CURRENT_TIMESTAMP
-            WHERE id=?
-            """,
-            (title, description, status, task_id),
-        )
-        updated = self.get_task_by_id(task_id)
-        if updated:
-            self.task_updated.emit(updated)
-            return updated
-
+        row = self.db.execute(query, (task_id,), fetchone=True)
+        if row:
+            return {
+                "id": row[0],
+                "title": row[1],
+                "description": row[2],
+                "status": row[3],
+                "image_path": row[4] if len(row) > 4 else None
+            }
+        return None
+    
+   
     def delete_task(self, task_id: int):
         """Supprime une tâche et émet un signal."""
         self.db.execute("DELETE FROM tasks WHERE id=?", (task_id,))
         self.task_deleted.emit(task_id)
+
+    def update_task_details(self, task):
+        try:
+            fields = ["title", "description", "status"]
+            params = [task.get(field) for field in fields]
+
+            if "image_path" in task:
+                fields.append("image_path")
+                params.append(task["image_path"])
+
+            set_clause = ", ".join([f"{field} = ?" for field in fields])
+            query = f"UPDATE tasks SET {set_clause} WHERE id = ?"
+            params.append(task["id"])
+
+            self.db.execute(query, params)
+            self.task_updated.emit(task)  # Succès → notifie les vues
+
+        except sqlite3.Error as e:
+            print(f"❌ Erreur SQL : {e}")
+            self.task_update_failed.emit(task["id"], str(e))  # Échec → notifie l'erreur
+
+
+
+    def update_status(self, task_id, status):
+        self.db.execute("UPDATE tasks SET status=? WHERE id=?", (status, task_id))
+
+

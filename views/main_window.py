@@ -1,7 +1,7 @@
 # views/main_window.py
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
-    QHBoxLayout, QListWidget, QPushButton, QLineEdit, QLabel, QMessageBox, QListWidgetItem
+    QHBoxLayout, QListWidget, QPushButton, QLineEdit, QLabel, QMessageBox, QListWidgetItem, QStackedWidget
 )
 from PySide6.QtCore import Qt
 from views.widgets.task_row_widget import TaskRowWidget
@@ -14,12 +14,22 @@ class MainWindow(QMainWindow):
 
         self.parent_controller = None  
         
+        # === Stack principal ===
+        self.stack = QStackedWidget()
+        self.setCentralWidget(self.stack)
+
+        # === Page principale ===
+        self.page_main = QWidget()
+        self.layout_main = QVBoxLayout(self.page_main)
+
+       
+
         self.setWindowTitle("Gestionnaire de tâches")
         self.setMinimumSize(600, 400)
 
-        self.central_widget = QWidget()
-        self.setCentralWidget(self.central_widget)
-        self.layout = QVBoxLayout(self.central_widget)
+        # Le QStackedWidget est le central widget — on n'écrase pas le central widget
+        # Utilise la layout de la page principale créée plus haut
+        self.layout = self.layout_main
 
         # --- UI ---
         title_label = QLabel("🗂️ Mes Tâches")
@@ -36,12 +46,17 @@ class MainWindow(QMainWindow):
         self.task_desc = QLineEdit()
         self.task_desc.setPlaceholderText("Description...")
         self.add_button = QPushButton("Ajouter")
-
+        
         input_layout.addWidget(self.task_title)
         input_layout.addWidget(self.task_desc)
         input_layout.addWidget(self.add_button)
         self.layout.addLayout(input_layout)
 
+        self.stack.addWidget(self.page_main)  # index 0
+
+        self.setWindowTitle("Gestionnaire de tâches")
+        self.setMinimumSize(700, 450)
+        
    
     def get_task_inputs(self):
         return self.task_title.text().strip(), self.task_desc.text().strip()
@@ -73,9 +88,11 @@ class MainWindow(QMainWindow):
         self.task_list.setItemWidget(item, widget)
 
         # 6️⃣ Connecte les signaux du widget à ton contrôleur
-        widget.edit_clicked.connect(lambda id=task["id"]: self.parent_controller.edit_task(id))
+        widget.edit_clicked.connect(lambda id=task["id"]: self.parent_controller.open_task_detail(id))
+        
         widget.delete_clicked.connect(lambda id=task["id"]: self.parent_controller.delete_task(id))
 
-    
-        def show_error(self, message: str):
-            QMessageBox.warning(self, "Erreur", message)
+
+    def show_error(self, message: str):
+        """Affiche une boîte de dialogue d'erreur."""
+        QMessageBox.warning(self, "Erreur", message)
